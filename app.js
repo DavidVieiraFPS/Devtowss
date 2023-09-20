@@ -8,6 +8,10 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 const port = 3000;
 
+// Configurar o mecanismo de template EJS
+app.set('view engine', 'ejs');
+app.set('views', __dirname); // Onde seus arquivos de modelo estão localizados
+
 // Configure o middleware express.static para servir arquivos estáticos
 app.use(express.static('public'));
 
@@ -77,6 +81,66 @@ app.get('/sucesso', (req, res) => {
       // Lide com o caso em que o link único não foi encontrado
       res.status(404).send('Link único não encontrado');
     }
+  });
+});
+
+app.get('/divulgar/:linkDivulgado', (req, res) => {
+  const linkDivulgado = req.params.linkDivulgado;
+  
+  res.render('divulgar.njk', { link: linkDivulgado });
+});
+
+// Rota de cadastro
+app.post('/divulgar', (req, res) => {
+  const { nome, email, telefone, curso, cpf, comunicacoes, link } = req.body;
+
+  // Execute um SELECT para obter os dados da pessoa com base no linkUnico
+  db.get("SELECT linkUnico FROM inscritos WHERE linkUnico = ?", [link], (err, row) => {
+    if (err) {
+      throw err;
+    }
+
+    if (row) {
+      // Renderize a página de sucesso e passe os dados para o template
+      db.run(
+        'UPDATE inscritos SET totalDivulgados = totalDivulgados + 1 WHERE linkUnico = ?',
+        [link],
+        function(err) {
+          if (err) {
+            return console.error(err.message);
+          }
+          console.log(`Registro atualizado com sucesso! Linhas afetadas: ${this.changes}`);
+        }
+      );
+    } else {
+      // Lide com o caso em que o link único não foi encontrado
+      res.status(404).send('Link único não encontrado');
+    }
+  });
+
+  // Gere um link único para a pessoa cadastrada
+  const linkUnico = uuidv4();
+
+  // Gere um QR Code para o link único
+  qrcode.toDataURL(linkUnico, (err, qrCodeDataURL) => {
+    if (err) {
+      throw err;
+    }
+
+    // Insira os dados no banco de dados, incluindo o link único e QR Code
+    const inserirDados = db.prepare("INSERT INTO inscritos (nome, email, telefone, curso, cpf, comunicacoes, linkUnico, qrCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    inserirDados.run(nome, email, telefone, curso, cpf, comunicacoes, linkUnico, qrCodeDataURL);
+    inserirDados.finalize();
+
+    // Faça um SELECT dos dados dessa pessoa
+    db.get("SELECT * FROM inscritos WHERE linkUnico = ?", [linkUnico], (err, row) => {
+      if (err) {
+        throw err;
+      }
+
+      // Redirecione para a página de sucesso, passando os dados como parâmetros na URL
+      res.redirect(`/sucesso?linkUnico=${linkUnico}`);
+    });
   });
 });
 
