@@ -69,14 +69,14 @@ app.get('/sucesso', (req, res) => {
   const linkUnico = req.query.linkUnico;
 
   // Execute um SELECT para obter os dados da pessoa com base no linkUnico
-  db.get("SELECT nome, linkUnico, qrCode FROM inscritos WHERE linkUnico = ?", [linkUnico], (err, row) => {
+  db.get("SELECT nome, linkUnico, qrCode, totalDivulgados FROM inscritos WHERE linkUnico = ?", [linkUnico], (err, row) => {
     if (err) {
       throw err;
     }
 
     if (row) {
       // Renderize a página de sucesso e passe os dados para o template
-      res.render('sucesso.njk', { nome: row.nome, linkUnico: row.linkUnico, qrCode: row.qrCode });
+      res.render('sucesso.njk', { nome: row.nome, linkUnico: row.linkUnico, qrCode: row.qrCode, totalDivulgados: row.totalDivulgados });
     } else {
       // Lide com o caso em que o link único não foi encontrado
       res.status(404).send('Link único não encontrado');
